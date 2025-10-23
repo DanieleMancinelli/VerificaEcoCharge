@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
 
 db_config = {
     'host': 'mysql-54fee60-correzione-verifica21-10.j.aivencloud.com',
@@ -50,7 +49,6 @@ def login():
         conn.close()
     return render_template('login.html')
 
-
 # ================================
 # REGISTRAZIONE
 # ================================
@@ -83,7 +81,6 @@ def register():
         return redirect(url_for('login'))
     return render_template('register.html')
 
-
 # ================================
 # LOGOUT
 # ================================
@@ -91,7 +88,6 @@ def register():
 def logout():
     session.clear()
     return redirect(url_for('login'))
-
 
 # ================================
 # MAPPA UTENTE
@@ -106,13 +102,75 @@ def map_view():
     cursor.execute("SELECT * FROM colonnine")
     colonnine = cursor.fetchall()
 
-    cursor.execute("SELECT id_colonnina FROM ricariche WHERE CURRENT_TIMESTAMP BETWEEN data_inizio AND data_fine")
+    # Verifica quali colonnine sono occupate
+    cursor.execute("SELECT id_colonnina FROM ricariche WHERE data_fine IS NULL")
     occupate = [row['id_colonnina'] for row in cursor.fetchall()]
+
+    # Aggiungi campo occupata a ciascuna colonnina
+    for c in colonnine:
+        c['occupata'] = c['id_colonnina'] in occupate
 
     cursor.close()
     conn.close()
-    return render_template('map.html', colonnine=colonnine, occupate=occupate)
+    return render_template('map.html', colonnine=colonnine)
 
+# ================================
+# PRENOTAZIONE COLONNINA
+# ================================
+@app.route('/prenota/<int:id_colonnina>', methods=['POST'])
+def prenota_colonnina(id_colonnina):
+    if 'user_id' not in session or session.get('is_admin'):
+        return jsonify({'success': False, 'message': 'Non autorizzato'}), 403
+
+    user_id = session['user_id']
+    conn = mysql.connector.connect(**db_config)
+    cursor = conn.cursor(dictionary=True)
+
+    # Controlla se colonnina già occupata
+    cursor.execute("""
+        SELECT * FROM ricariche WHERE id_colonnina=%s AND data_fine IS NULL
+    """, (id_colonnina,))
+    if cursor.fetchone():
+        cursor.close()
+        conn.close()
+        return jsonify({'success': False, 'message': 'Colonnina già occupata'}), 400
+
+    cursor.execute("""
+        INSERT INTO ricariche (id_utente, id_colonnina, data_inizio)
+        VALUES (%s, %s, NOW())
+    """, (user_id, id_colonnina))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return jsonify({'success': True, 'message': 'Prenotazione avvenuta'})
+
+# ================================
+# TERMINA PRENOTAZIONE
+# ================================
+@app.route('/libera/<int:id_colonnina>', methods=['POST'])
+def libera_colonnina(id_colonnina):
+    if 'user_id' not in session or session.get('is_admin'):
+        return jsonify({'success': False, 'message': 'Non autorizzato'}), 403
+
+    user_id = session['user_id']
+    conn = mysql.connector.connect(**db_config)
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        UPDATE ricariche
+        SET data_fine = NOW()
+        WHERE id_colonnina=%s AND id_utente=%s AND data_fine IS NULL
+    """, (id_colonnina, user_id))
+
+    if cursor.rowcount == 0:
+        cursor.close()
+        conn.close()
+        return jsonify({'success': False, 'message': 'Nessuna prenotazione attiva da terminare'}), 400
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return jsonify({'success': True, 'message': 'Prenotazione terminata'})
 
 # ================================
 # DASHBOARD ADMIN
@@ -125,15 +183,12 @@ def admin_dashboard():
     conn = mysql.connector.connect(**db_config)
     cursor = conn.cursor(dictionary=True)
 
-    # Tutti gli utenti
     cursor.execute("SELECT * FROM utenti")
     utenti = cursor.fetchall()
 
-    # Tutte le colonnine
     cursor.execute("SELECT * FROM colonnine")
     colonnine = cursor.fetchall()
 
-    # Ricariche giornaliere per grafico
     cursor.execute("""
         SELECT DATE(data_inizio) AS giorno, COUNT(*) AS totale
         FROM ricariche
@@ -145,7 +200,6 @@ def admin_dashboard():
     cursor.close()
     conn.close()
     return render_template('admin_dashboard.html', utenti=utenti, colonnine=colonnine, ricariche=ricariche_giornaliere)
-
 
 # ================================
 # CRUD colonnine (Admin)
@@ -171,7 +225,6 @@ def add_colonnina():
     conn.close()
     return redirect(url_for('admin_dashboard'))
 
-
 @app.route('/admin/colonnina/delete/<int:id>', methods=['POST'])
 def delete_colonnina(id):
     if 'user_id' not in session or not session.get('is_admin'):
@@ -183,7 +236,6 @@ def delete_colonnina(id):
     cursor.close()
     conn.close()
     return redirect(url_for('admin_dashboard'))
-
 
 # ================================
 # CRUD utenti (Admin)
@@ -199,7 +251,6 @@ def delete_utente(id):
     cursor.close()
     conn.close()
     return redirect(url_for('admin_dashboard'))
-
 
 if __name__ == "__main__":
     app.run(debug=True)
