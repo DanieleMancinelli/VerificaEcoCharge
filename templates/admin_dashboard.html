@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard - EcoCharge</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <nav style="padding: 10px; background: #2980b9; color: white;">
+        <span style="font-weight: bold;">EcoCharge Admin</span>
+        <a href="{{ url_for('logout') }}" style="color: white; float: right;">Logout</a>
+    </nav>
+
+    <h2>Dashboard Admin</h2>
+
+    <!-- Sezione Utenti -->
+    <section>
+        <h3>Utenti Registrati</h3>
+        <table>
+            <tr>
+                <th>ID</th><th>Nome</th><th>Cognome</th><th>Email</th><th>Azioni</th>
+            </tr>
+            {% for u in utenti %}
+            <tr>
+                <td>{{ u.id_utente }}</td>
+                <td>{{ u.nome }}</td>
+                <td>{{ u.cognome }}</td>
+                <td>{{ u.email }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('delete_utente', id=u.id_utente) }}">
+                        <button type="submit">Elimina</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </section>
+
+    <!-- Sezione Colonnine -->
+    <section>
+        <h3>Colonnine</h3>
+        <table>
+            <tr>
+                <th>ID</th><th>Indirizzo</th><th>Lat</th><th>Lon</th><th>Potenza</th><th>NIL</th><th>Azioni</th>
+            </tr>
+            {% for c in colonnine %}
+            <tr>
+                <td>{{ c.id_colonnina }}</td>
+                <td>{{ c.indirizzo }}</td>
+                <td>{{ c.latitudine }}</td>
+                <td>{{ c.longitudine }}</td>
+                <td>{{ c.potenza_kw }}</td>
+                <td>{{ c.NIL }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('delete_colonnina', id=c.id_colonnina) }}">
+                        <button type="submit">Elimina</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+
+        <h4>Aggiungi nuova colonnina</h4>
+        <form method="POST" action="{{ url_for('add_colonnina') }}">
+            <input type="text" name="indirizzo" placeholder="Indirizzo" required>
+            <input type="text" name="latitudine" placeholder="Latitudine" required>
+            <input type="text" name="longitudine" placeholder="Longitudine" required>
+            <input type="number" name="potenza_kw" placeholder="Potenza kW" required>
+            <input type="text" name="NIL" placeholder="NIL" required>
+            <button type="submit">Aggiungi</button>
+        </form>
+    </section>
+
+    <!-- Sezione Grafico Ricariche -->
+    <section>
+        <h3>Ricariche giornaliere</h3>
+        <canvas id="chartRicariche" style="max-width:90%; margin: 0 auto;"></canvas>
+
+        {% raw %}
+        <script>
+            // JSON passato da Jinja sarà interpretato solo al runtime
+            const chartLabels = {{ ricariche | map(attribute='giorno') | list | tojson | safe }};
+            const chartData = {{ ricariche | map(attribute='totale') | list | tojson | safe }};
+
+            const ctx = document.getElementById('chartRicariche').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'Ricariche per giorno',
+                        data: chartData,
+                        backgroundColor: '#27ae60'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        </script>
+        {% endraw %}
+    </section>
+
+</body>
+</html>

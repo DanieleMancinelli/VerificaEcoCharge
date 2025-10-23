@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mappa Colonnine - EcoCharge</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+
+    <nav style="padding: 10px; background: #2980b9; color: white;">
+        <span style="font-weight: bold;">EcoCharge User</span>
+        <a href="{{ url_for('logout') }}" style="color: white; float: right;">Logout</a>
+    </nav>
+
+    <h2 style="text-align: center; margin-top: 20px;">Mappa Colonnine</h2>
+
+    <div id="map" style="height: 600px; width: 90%; margin: 20px auto;"></div>
+
+    {% raw %}
+    <script>
+        // Inizializza mappa centrata su Milano
+        const map = L.map('map').setView([45.4642, 9.19], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data © <a href="https://openstreetmap.org">OpenStreetMap</a>'
+        }).addTo(map);
+
+        // Aggiungi marker per ogni colonnina
+        {% for c in colonnine %}
+            let iconColor = {{ 'true' if c.occupata else 'false' }};
+            let markerColor = {{ 'true' if c.occupata else 'false' }} ? 'red' : 'green';
+            const icon = L.icon({
+                iconUrl: markerColor === 'red' ? 
+                    'https://maps.google.com/mapfiles/ms/icons/red-dot.png' :
+                    'https://maps.google.com/mapfiles/ms/icons/green-dot.png',
+                iconSize: [32, 32]
+            });
+            L.marker([{{ c.latitudine }}, {{ c.longitudine }}], {icon: icon})
+             .addTo(map)
+             .bindPopup(`<b>{{ c.indirizzo }}</b><br>Potenza: {{ c.potenza_kw }} kW<br>
+                         <button onclick="prenotaColonnina({{ c.id_colonnina }})">Prenota</button>`);
+        {% endfor %}
+
+        // Funzione base prenotazione (da implementare lato Flask)
+        function prenotaColonnina(id) {
+            alert('Funzione prenotazione colonnina ID: ' + id);
+            // Qui puoi fare fetch POST a Flask per salvare prenotazione
+        }
+    </script>
+    {% endraw %}
+
+</body>
+</html>

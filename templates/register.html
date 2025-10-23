@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Registrazione EcoCharge</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h2>Registrazione Nuovo Utente</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('register') }}">
+        <input type="text" name="nome" placeholder="Nome" required>
+        <input type="text" name="cognome" placeholder="Cognome" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="password" name="password" placeholder="Password" required>
+        <button type="submit">Registrati</button>
+    </form>
+
+    <p style="text-align:center; margin-top:10px;">
+        Hai già un account? <a href="{{ url_for('login') }}">Login qui</a>
+    </p>
+</body>
+</html>
